@@ -7,6 +7,7 @@
 # User input instructions
 .equ PLAY,   0x073 				# "s" hex value in ASCII code used for Play instruction
 .equ PAUSE,  0x070 				# "p" hex value in ASCII code used for Pause instruction
+.equ REWIND, 0x072				# "r" hex value in ASCII code used for Rewind instruction
 
 .section .text
 
@@ -91,6 +92,9 @@ myISR:
     beq r11, r12, PLAY_HANDLING 		# Play instruction
     movia r12,PAUSE
     beq r11, r12, PAUSE_HANDLING 		# Pause instruction
+    movia r12, REWIND				
+    beq r11, r12, PAUSE_HANDLING		# Rewind instruction
+    
     #if user press something else
 	br INTERRUPT_EXIT
 
@@ -105,7 +109,7 @@ READ_POLL:
 
 #*********** If PLAY ***********
 PLAY_HANDLING:
-	#Motor OFF and motor timer restarted
+	#Motor ON and motor timer restarted
 	movia r9,TIMER			#set base address
 	#stwio r0,0(r9) 				#clear â€œtime-outâ€? bit, just in case
 	movi r11,0b0110 			#start timer motor, and continue
@@ -120,7 +124,7 @@ PLAY_HANDLING:
  
  #*********** If PAUSE ***********
 PAUSE_HANDLING:
-	#Motor ON and motor timer stopped
+	#Motor OFF and motor timer stopped
 	movia r9,TIMER			#set base address
 	#stwio r0,0(r9) 				#clear â€œtime-outâ€? bit, just in case
 	movi r11,0b1000 			#stop timer motor
@@ -133,6 +137,21 @@ PAUSE_HANDLING:
 	
 	br INTERRUPT_EXIT
 
+#*********** If REVERSE ***********
+REWIND_HANDLING:
+	#Motor ON and motor timer restarted
+	movia r9,TIMER			#set base address
+	#stwio r0,0(r9) 		#clear time-out bit, just in case
+	movi r11,0b0110 		#start timer motor, and continue
+	stwio r11,4(r9) 			
+	
+	movi r12, 0b11111000       	# motor0 (lights on bit 0 = 0) and motor1 off (bit2=1) , direction set to forward (bit1=0, bit3 = 1) 
+	stwio	 r12, 0(r10)
+	
+	movi r4, 1			#set state ("reverse") same as play
+	
+	br PAUSE_HANDLING
+	
 INTERRUPT_EXIT:
 
 # Recover saved registed before exiting interrupt
