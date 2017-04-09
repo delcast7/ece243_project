@@ -1,5 +1,3 @@
-hola lucho
-
 .equ JTAG, 0xff201000		#Address of the JTAG 
 .equ ADDR_JP1, 0xff200060   # Address GPIO JP1
 .equ TIMER, 0xff202000
