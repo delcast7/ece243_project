@@ -1,3 +1,5 @@
+hola lucho
+
 .equ JTAG, 0xff201000		#Address of the JTAG 
 .equ ADDR_JP1, 0xff200060   # Address GPIO JP1
 .equ TIMER, 0xff202000
@@ -50,7 +52,7 @@ Loop:
 	bne r13, r16, Loop			# if bit != 1 br Loop
 	
 	movia r9,TIMER				# else if bit ==1 set base address
-	stwio r0,0(r9) 				# clear “time-out�? bit
+	stwio r0,0(r9) 				# clear â€œtime-outâ€? bit
 	
 	subi r14, r14, 1
 	ldw r9, 0(r10)				# load Lego Bits
@@ -107,7 +109,7 @@ READ_POLL:
 PLAY_HANDLING:
 	#Motor OFF and motor timer restarted
 	movia r9,TIMER			#set base address
-	#stwio r0,0(r9) 				#clear “time-out�? bit, just in case
+	#stwio r0,0(r9) 				#clear â€œtime-outâ€? bit, just in case
 	movi r11,0b0110 			#start timer motor, and continue
 	stwio r11,4(r9) 			
 	
@@ -122,7 +124,7 @@ PLAY_HANDLING:
 PAUSE_HANDLING:
 	#Motor ON and motor timer stopped
 	movia r9,TIMER			#set base address
-	#stwio r0,0(r9) 				#clear “time-out�? bit, just in case
+	#stwio r0,0(r9) 				#clear â€œtime-outâ€? bit, just in case
 	movi r11,0b1000 			#stop timer motor
 	stwio r11,4(r9)
 	
@@ -165,7 +167,7 @@ INIT_TIMER:
 	stwio r11,12(r9)
 	movi r11,%lo(PERIOD)
 	stwio r11,8(r9)
-	stwio r0,0(r9) 				#clear “time-out�? bit, just in case
+	stwio r0,0(r9) 				#clear â€œtime-outâ€? bit, just in case
 	movi r11,0b1000 			#timer initialized but not ON
 	stwio r11,4(r9) 			
 	ret
