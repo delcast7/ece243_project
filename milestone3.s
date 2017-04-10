@@ -1,5 +1,7 @@
 .equ JTAG, 0xff201000		#Address of the JTAG 
 .equ ADDR_JP1, 0xff200060   # Address GPIO JP1
+.equ ADDR_JP2, 0xff200070   # Address GPIO JP1
+
 .equ TIMER, 0xff202000
 .equ PERIOD, 65
 .equ COUNTER, 1000000
@@ -8,6 +10,11 @@
 .equ PLAY,   0x073 				# "s" hex value in ASCII code used for Play instruction
 .equ PAUSE,  0x070 				# "p" hex value in ASCII code used for Pause instruction
 .equ REWIND, 0x072				# "r" hex value in ASCII code used for Rewind instruction
+
+.section .data
+
+LIGHT_STATE:
+.word  	0
 
 .section .text
 
@@ -25,11 +32,18 @@ _start:
 
     movui r9,0x100	#enable IQR line 8 (JTAG)
     wrctl ctl3,r9   #enable ienable 
-    
+
+#*******Initialize GPIO JPIs************ 
+    movia  r10, ADDR_JP1
+
+	movia  r15, ADDR_JP2
+	movia   r9, 0xffffffff	# Set direction of all 32-bits to output on JPI 2 
+	stwio  r9, 4(r15)  
+
+
 #*******Initialize Lego controller and motor-light timer************    
-	movia  r10, ADDR_JP1
 	movia  r9, 0x07f557ff 	# direction register for Lego controller      
-	stwio  r9, 4(r10)		# set direction for motors to all output
+	stwio  r9, 4(r10)		# set direction register on GPIO JP1 for motors to all output
 
 	movi r9, 0xffffffff		#motor and light OFF at initial state
 	stwio  r9, 0(r10)
@@ -56,17 +70,27 @@ Loop:
 	subi r14, r14, 1
 	ldw r9, 0(r10)				# load Lego Bits
 	beq r14, r0, LIGHT_TIMER
-	beq r4, r5, Loop     #nothing happens state
+	beq r4, r5, Loop     		#nothing happens state
 	xori	r9, r9, 0b0100		# turn on/off motor and light
 	stwio  r9, 0(r10)			# send instruction
 	br Loop	
 	
 LIGHT_TIMER:
-	movia r14, COUNTER
-	beq r4, r5, Loop     #nothing happens state
+	movia 	r14, COUNTER 		#reset counter
+
+	beq 	r4, r5, Loop     	#nothing happens state
 	xori	r9, r9, 0b0001		# turn on/off motor and light
-	stwio  r9, 0(r10)			# send instruction
-	br Loop	
+	stwio  	r9, 0(r10)			# send instruction
+
+	
+	movia	r18, LIGHT_STATE	#get data state
+	ldw		r9,0(r18)
+	xori	r9, r9, 0b0001		# turn on/off motor and light
+    andi	r9,r9,0x01
+	#slli    r9,r9,1
+	stw  	r9, 0(r18)			# update light state
+	stw		r9, 0(r15)			# send data to JP2
+	br 		Loop	
 
 #********Interrupt handling section**********
 .section .exceptions, "ax"
@@ -93,7 +117,7 @@ myISR:
     movia r12,PAUSE
     beq r11, r12, PAUSE_HANDLING 		# Pause instruction
     movia r12, REWIND				
-    beq r11, r12, PAUSE_HANDLING		# Rewind instruction
+    beq r11, r12, REWIND_HANDLING		# Rewind instruction
     
     #if user press something else
 	br INTERRUPT_EXIT
@@ -118,6 +142,9 @@ PLAY_HANDLING:
 	movi r12, 0b11110100       	# motor0 (lights on) (bit0=0) and motor1 off (bit2=1) , direction set to forward (bit1=0, bit3 = 0) 
 	stwio	 r12, 0(r10)
 	
+	movi     r12, 0b00001
+	stwio	 r12, 0(r15)
+
 	movi r4, 1					#set state 1("play")
 	
 	br INTERRUPT_EXIT
@@ -131,7 +158,10 @@ PAUSE_HANDLING:
 	stwio r11,4(r9)
 	
 	movi	 r12, 0b11110101       # motor0 (bit0=1) and motor1 (bit2=1) off , don't care about direction 
-	stwio	 r12, 0(r10)	
+	stwio	 r12, 0(r10)
+
+	movi     r12, 0b000001
+	stwio	 r12, 0(r15)
 	
 	movi r4, 0					#set state 0("pause")
 	
@@ -150,7 +180,8 @@ REWIND_HANDLING:
 	
 	movi r4, 1			#set state ("reverse") same as play
 	
-	br PAUSE_HANDLING
+	beq r11, r12, REWIND_HANDLING
+	br INTERRUPT_EXIT
 	
 INTERRUPT_EXIT:
 
